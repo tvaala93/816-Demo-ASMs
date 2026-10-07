@@ -1,0 +1,74 @@
+Modules list:
+-------------
+keyboarding.o:
+    CODE              Offs=000000  Size=00007B  Align=00001  Fill=0000
+    RODATA            Offs=000000  Size=000007  Align=00001  Fill=0000
+    VECTORS           Offs=000000  Size=000006  Align=00001  Fill=0000
+lcd.o:
+    CODE              Offs=00007B  Size=000185  Align=00001  Fill=0000
+    BSS               Offs=000000  Size=000002  Align=00001  Fill=0000
+    ZEROPAGE          Offs=000000  Size=000001  Align=00001  Fill=0000
+ps2KB.o:
+    CODE              Offs=000200  Size=0000FA  Align=00001  Fill=0000
+    BSS               Offs=000002  Size=000100  Align=00001  Fill=0000
+    ZEROPAGE          Offs=000001  Size=000004  Align=00001  Fill=0000
+    KEYMAP            Offs=000000  Size=000200  Align=00001  Fill=0000
+
+
+Segment list:
+-------------
+Name                   Start     End    Size  Align
+----------------------------------------------------
+ZEROPAGE              000000  000004  000005  00001
+BSS                   000500  000601  000102  00001
+CODE                  008000  0082F9  0002FA  00001
+RODATA                0082FA  008300  000007  00001
+KEYMAP                009C00  009DFF  000200  00001
+VECTORS               009FFA  009FFF  000006  00001
+
+
+Exports list by name:
+---------------------
+kbGetKey                  00823B RLA    kbIRQ                     00821C RLA    
+kbInit                    008200 RLA    lcdClear                  00809D RLA    
+lcdCursD                  008176 RLA    lcdCursL                  008191 RLA    
+lcdCursR                  00819E RLA    lcdCursU                  008165 RLA    
+lcdNewline                0081AD RLA    lcdSetup                  00807B RLA    
+lcdWriteChar              008138 RLA    
+
+
+Exports list by value:
+----------------------
+lcdSetup                  00807B RLA    lcdClear                  00809D RLA    
+lcdWriteChar              008138 RLA    lcdCursU                  008165 RLA    
+lcdCursD                  008176 RLA    lcdCursL                  008191 RLA    
+lcdCursR                  00819E RLA    lcdNewline                0081AD RLA    
+kbInit                    008200 RLA    kbIRQ                     00821C RLA    
+kbGetKey                  00823B RLA    
+
+
+Imports list:
+-------------
+kbGetKey (ps2KB.o):
+    keyboarding.o             inc/ps2KB.inc(17)
+kbIRQ (ps2KB.o):
+    keyboarding.o             inc/ps2KB.inc(17)
+kbInit (ps2KB.o):
+    keyboarding.o             inc/ps2KB.inc(17)
+lcdClear (lcd.o):
+    keyboarding.o             inc/lcd.inc(20)
+lcdCursD (lcd.o):
+    keyboarding.o             inc/lcd.inc(21)
+lcdCursL (lcd.o):
+    keyboarding.o             inc/lcd.inc(21)
+lcdCursR (lcd.o):
+    keyboarding.o             inc/lcd.inc(21)
+lcdCursU (lcd.o):
+    keyboarding.o             inc/lcd.inc(21)
+lcdNewline (lcd.o):
+    keyboarding.o             inc/lcd.inc(21)
+lcdSetup (lcd.o):
+    keyboarding.o             inc/lcd.inc(20)
+lcdWriteChar (lcd.o):
+    keyboarding.o             inc/lcd.inc(20)
+

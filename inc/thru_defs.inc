@@ -1,6 +1,9 @@
 ; =============================================================================
 ; thru_defs.inc -- shared constants for code using the through-hole computer
 ; (ASCII only. Edit ACIA_BASE / VIA_BASE here if your PLD map differs.)
+;
+; Board facts only. Per-driver constants live in lcd.inc / ps2KB.inc, and
+; RAM for drivers is assigned by the linker (see rom.cfg), not by this file.
 ; =============================================================================
 
 ;------------------------------------------------------------------------------
@@ -22,59 +25,6 @@ ACR      = VIA_BASE + $B ; Auxilliary Control Register
 PCR      = VIA_BASE + $C ; Peripheral Control Register
 IFR      = VIA_BASE + $D ; Interrupt Flag Register
 IER      = VIA_BASE + $E ; Interrupt Enable Register
-
-;------------------------------------------------------------------------------
-; --- 16x02 Character LCD Constants ---
-;------------------------------------------------------------------------------
-E  = %00000100      ; LCD enable signal   -> PB2
-RW = %00000010      ; LCD read/write sig  -> PB1
-RS = %00000001      ; LCD register select -> PB0
-
-
-; LCD Instruction breakout
-LCD_CLEAR   =   %00000001 ; Clears LCD & sets DDRAM addr to 0 in counter
-LCD_HOME    =   %00000010 ; Sets DDRAM addr to 0 in counter & un-shifts LCD
-LCD_BLINK   =   %00001100 ; Sets cursor on/off (b1) and blink (b0)
-LCD_CURSR   =   %00010100 ; Moves cursor Right
-LCD_CURSL   =   %00010000 ; Moves cursor Left
-LCD_SHIFTR  =   %00011100 ; Shifts LCD Right
-LCD_SHIFTL  =   %00011000 ; Shifts LCD Left
-LCD_FUNC    =   %00100000 ; Sets # lines (b3) & font (b2)
-
-; usage:
-; lda #LCD_HOME
-; lcdCfgCmd -> homes the LCD
-; lda (#LCD_CURS | #%0010) -> moves cursor 1 posn right
-
-CURS_POSN       = $300      ; Tracks absolute posn in 40x2 logical buff (0-79)
-LCD_OFFSET      = $301      ; Tracks left edge of the view port/window (0-24)
-; the window shows offset through offset+15, 
-; and 24 is the furthest right it can go while still showing real data
-
-; 16x2
-LCDROWS = 2
-LCDCOLS = 16
-
-; 20x4
-;LCDROWS = 4
-;LCDCOLS = 20
-
-; -----------------------------------------------------------------------------
-; --- PS/2 Keyboard constants ---
-; -----------------------------------------------------------------------------
-
-KB_WPTR = $0000
-KB_RPTR = $0001
-KB_FLAG = $0002
-
-KB_BUFF = $0200 ; 256-byte keboard buffer 0200-02ff
-
-KB_RELEASE  = %00000001
-KB_SHIFT    = %00000010
-KB_CTRL     = %00000100
-KB_ALT      = %00001000
-KB_EXTENDED = %00010000
-
 
 ;------------------------------------------------------------------------------
 ; --- W65C51N ACIA: value > $FFFF, so ca65 emits 24-bit LONG addressing ---

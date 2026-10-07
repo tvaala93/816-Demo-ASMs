@@ -14,13 +14,16 @@
 ;   PB7 -> No Connect
 ;
 ; Public interface (the only labels other files should call):
-;   lcdInit      - resynchronize the LCD and enter 4-bit mode
-;   lcdCfgCmd    - send a configuration byte (RS=0)
-;   lcdWriteChar - send a character byte     (RS=1)
+;   lcdSetup      - init the VIA and the LCD, clear the screen
+;   lcdClear      - clear the screen and home the cursor
+;   lcdCfgCmd     - send a configuration byte (RS=0)
+;   lcdWriteChar  - send a character byte     (RS=1), advance the cursor
+;   lcdNewline, lcdCursU/D/L/R - move the cursor
+; (documented in lcd.inc, which is all a caller needs to include)
 ;
-; toggleE and lcdWait are private implementation details used
-; only within this file, and are deliberately NOT exported --
-; nothing outside lcd.s should be reaching into them.
+; Everything else (lcdInit, toggleE, lcdWait, the viewport code and the
+; cursor variables below) is private and deliberately NOT exported --
+; nothing outside lcd.s should be reaching into it.
 ; ============================================================
 
     .setcpu "65816"
@@ -28,17 +31,26 @@
     .i8
     .smart
 
-    .include "inc/thru_defs.inc"
-    .export lcdSetup, lcdCfgCmd, lcdWriteChar, lcdCursU, lcdCursD, lcdCursL, lcdCursR, lcdNewline
+    .include "thru_defs.inc"
+LCD_IMPL = 1                ; this file defines the routines lcd.inc imports
+    .include "lcd.inc"
+    .export lcdSetup, lcdClear, lcdCfgCmd, lcdWriteChar
+    .export lcdCursU, lcdCursD, lcdCursL, lcdCursR, lcdNewline
+
+; Variables: the linker assigns the addresses (see ZEROPAGE and BSS in rom.cfg)
+    .segment "ZEROPAGE" : zeropage
+lcdTemp:    .res 1          ; scratch for lcdSyncViewport
+
+    .segment "BSS"
+lcdCursPosn: .res 1          ; Tracks absolute posn in 40x2 logical buff (0-79)
+lcdOffset:  .res 1          ; Tracks left edge of the view port/window (0-24)
+; the window shows offset through offset+15,
+; and 24 is the furthest right it can go while still showing real data
 
     .segment "CODE"
 
-TEMP = $10
-
 lcdSetup:
     jsr viaInit    
-    stz CURS_POSN
-    stz LCD_OFFSET
     ldx #60
 @outer:
     ldy #0
@@ -54,9 +66,17 @@ lcdSetup:
     jsr lcdCfgCmd
     lda #%00000110          ; increment, no shift
     jsr lcdCfgCmd
-    lda #LCD_CLEAR          ; clear display
-    jsr lcdCfgCmd
-    rts
+    jmp lcdClear
+
+; -------------------------------------
+; Clear the display and home the cursor. Clear also un-shifts the display,
+; so the window offset goes back to 0 with it.
+; -------------------------------------
+lcdClear:
+    stz lcdCursPosn
+    stz lcdOffset
+    lda #LCD_CLEAR
+    jmp lcdCfgCmd           ; tail call
 
 viaInit:  
   lda #%11111111
@@ -179,13 +199,13 @@ lcdWriteChar:
     jsr toggleE
     
     ; Bookkeeping to update DDRAM and offset
-    lda CURS_POSN       ; Get tracked DDRAM address
+    lda lcdCursPosn ; Advance logical position (0-79), stop at the last cell
     inc
     cmp #80
     bcc @store
     lda #79
 @store:
-    sta CURS_POSN
+    sta lcdCursPosn
     jmp lcdSyncViewport
     
 
@@ -193,29 +213,29 @@ lcdWriteChar:
 ; Cursor Directional Handlers
 ; -------------------------------------
 lcdCursU:
-    lda CURS_POSN
+    lda lcdCursPosn
     cmp #$28
     bcc @done
     sec
     sbc #$28        ; Else move cursor up by subtracting 40
-    sta CURS_POSN
+    sta lcdCursPosn
     jsr lcdSyncViewport
 @done:   
     rts
 
 lcdCursD:
-    lda CURS_POSN
+    lda lcdCursPosn
     cmp #$28
     bcc @move_down
     ; already on row 2, so don't move further
     jmp @done
 @move_down:
-    lda CURS_POSN
+    lda lcdCursPosn
     clc
     adc #$28
     cmp #$50
     bcs @done
-    sta CURS_POSN
+    sta lcdCursPosn
     jsr lcdSyncViewport
 @done:   
     rts
@@ -224,10 +244,10 @@ lcdCursD:
 ; If cursor is in left-most cell, 
 ; check for add'l characters and shift entire display
 lcdCursL:
-    lda CURS_POSN
+    lda lcdCursPosn
     beq @done          ; We're at left-most column of top row
     dec
-    sta CURS_POSN
+    sta lcdCursPosn
     jsr lcdSyncViewport
 @done:   
     rts
@@ -236,11 +256,11 @@ lcdCursL:
 ; If cursor is in right-most cell, 
 ; check for add'l characters and shift entire display
 lcdCursR:
-    lda CURS_POSN
+    lda lcdCursPosn
     cmp #79
     beq @done          ; We're at right-most column of bottom row
     inc
-    sta CURS_POSN
+    sta lcdCursPosn
     jsr lcdSyncViewport
 @done:   
     rts
@@ -251,23 +271,23 @@ lcdCursR:
 ; (from the bottom row, wrap to the top row)
 ; -------------------------------------
 lcdNewline:
-    lda CURS_POSN
+    lda lcdCursPosn
     cmp #$28            ; carry set if already on row 2
     lda #$28            ; (lda doesn't touch carry) default: start of row 2
     bcc @set
     lda #0              ; was on row 2: wrap to start of row 1
 @set:
-    sta CURS_POSN
+    sta lcdCursPosn
     jmp lcdSyncViewport
 
 
 ; -------------------------------------
-; Send the real LCD cursor to CURS_POSN.
-; CURS_POSN is a 0-79 logical index (row 2 = 40-79) but the HD44780's
+; Send the real LCD cursor to lcdCursPosn.
+; lcdCursPosn is a 0-79 logical index (row 2 = 40-79) but the HD44780's
 ; DDRAM row 2 starts at $40, not $28:  addr = pos (row 1), pos+$18 (row 2)
 ; -------------------------------------
 lcdSetCursor:
-    lda CURS_POSN
+    lda lcdCursPosn
     cmp #$28
     bcc @send
     clc
@@ -282,27 +302,27 @@ lcdSetCursor:
 ; then put the hardware cursor on the cursor cell.
 ; -------------------------------------
 lcdSyncViewport:    
-    lda CURS_POSN
+    lda lcdCursPosn
     cmp #$28                
     bcc @col_ok    
     sbc #$28                ; If >= 40, subtract 40
 @col_ok:
-    sta TEMP
+    sta lcdTemp
 @left:                  ; Cursor left of window?
-    lda TEMP
-    cmp LCD_OFFSET
+    lda lcdTemp
+    cmp lcdOffset
     bcs @right    ; col >= offset
-    dec LCD_OFFSET
+    dec lcdOffset
     lda #LCD_SHIFTR     ; window moves left over data
     jsr lcdCfgCmd
     bra @left
 @right:                 ; Cursor right of window?
-    lda LCD_OFFSET
+    lda lcdOffset
     clc
     adc #(LCDCOLS - 1)  ; Right-most visible column
-    cmp TEMP
+    cmp lcdTemp
     bcs @place          ; Right edge >= col
-    inc LCD_OFFSET
+    inc lcdOffset
     lda #LCD_SHIFTL
     jsr lcdCfgCmd
     bra @right
