@@ -13,7 +13,7 @@
 .ifndef PS2KB_INC
 PS2KB_INC = 1
 
-.ifndef PS2KB_IMPL          ; ps2KB.s defines these itself
+.ifndef PS2KB_IMPL      ; ps2KB.s defines these itself
     .import kbInit, kbIRQ, kbGetKey, kbWaitKey
     .importzp kbFlags
 .endif

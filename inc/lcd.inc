@@ -44,16 +44,16 @@ LCD_FUNC    =   %00100000 ; Sets # lines (b3) & font (b2)
 ;------------------------------------------------------------------------------
 ; --- 16x02 Character LCD Constants ---
 ;------------------------------------------------------------------------------
-E  = %00000100      ; LCD enable signal   -> PB2
-RW = %00000010      ; LCD read/write sig  -> PB1
-RS = %00000001      ; LCD register select -> PB0
+E  = %00000100          ; LCD enable signal   -> PB2
+RW = %00000010          ; LCD read/write sig  -> PB1
+RS = %00000001          ; LCD register select -> PB0
 
 ; 16x2
 LCDROWS = 2
 LCDCOLS = 16
 
 ; 20x4
-;LCDROWS = 4
-;LCDCOLS = 20
+; LCDROWS = 4
+; LCDCOLS = 20
 
 .endif

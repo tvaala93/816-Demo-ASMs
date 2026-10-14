@@ -32,39 +32,39 @@
     .smart
 
     .include "thru_defs.inc"
-LCD_IMPL = 1                ; this file defines the routines lcd.inc imports
+LCD_IMPL = 1            ; this file defines the routines lcd.inc imports
     .include "lcd.inc"
     .export lcdSetup, lcdClear, lcdCfgCmd, lcdWriteChar
     .export lcdCursU, lcdCursD, lcdCursL, lcdCursR, lcdNewline
 
 ; Variables: the linker assigns the addresses (see ZEROPAGE and BSS in rom.cfg)
     .segment "ZEROPAGE" : zeropage
-lcdTemp:    .res 1          ; scratch for lcdSyncViewport
+lcdTemp:    .res 1      ; scratch for lcdSyncViewport
 
     .segment "BSS"
-lcdCursPosn: .res 1          ; Tracks absolute posn in 40x2 logical buff (0-79)
-lcdOffset:  .res 1          ; Tracks left edge of the view port/window (0-24)
+lcdCursPosn: .res 1     ; Tracks absolute posn in 40x2 logical buff (0-79)
+lcdOffset:  .res 1      ; Tracks left edge of the view port/window (0-24)
 ; the window shows offset through offset+15,
 ; and 24 is the furthest right it can go while still showing real data
 
     .segment "CODE"
 
 lcdSetup:
-    jsr viaInit    
+    jsr viaInit
     ldx #60
 @outer:
     ldy #0
 @inner:
-    dey                     ; 2
-    bne @inner              ; 3  -> ~1280 cycles per outer pass
+    dey                 ; 2
+    bne @inner          ; 3  -> ~1280 cycles per outer pass
     dex
-    bne @outer              ; 60 passes ~ 77k cycles ~ 42 ms @ 1.8432 MHz
+    bne @outer          ; 60 passes ~ 77k cycles ~ 42 ms @ 1.8432 MHz
     jsr lcdInit
-    lda #%00101000          ; 4-bit mode; 2 lines; 5x8 font
+    lda #%00101000      ; 4-bit mode; 2 lines; 5x8 font
     jsr lcdCfgCmd
-    lda #%00001110          ; display on, cursor on, blink off
+    lda #%00001110      ; display on, cursor on, blink off
     jsr lcdCfgCmd
-    lda #%00000110          ; increment, no shift
+    lda #%00000110      ; increment, no shift
     jsr lcdCfgCmd
     jmp lcdClear
 
@@ -76,29 +76,28 @@ lcdClear:
     stz lcdCursPosn
     stz lcdOffset
     lda #LCD_CLEAR
-    jmp lcdCfgCmd           ; tail call
+    jmp lcdCfgCmd       ; tail call
 
-viaInit:  
-  lda #%11111111
-  sta DDRB  
-  rts
+viaInit:
+    lda #%11111111
+    sta DDRB
+    rts
 
 ; -------------------------------------
 ; The LCD may have been left halfway through a byte by a warm
 ; reset.  Send the 8-bit-mode wake-up nibble three times so the
 ; controller is synchronized before selecting 4-bit mode.
 ; -------------------------------------
-lcdInit:    
-    lda #%00011000 ; LCD nibble 0011 (DB4..DB7 on PB3..PB6)
+lcdInit:
+    lda #%00011000      ; LCD nibble 0011 (DB4..DB7 on PB3..PB6)
     jsr lcdInitNibble
     jsr lcdInitDelay
     jsr lcdInitNibble
     jsr lcdInitDelay
     jsr lcdInitNibble
     jsr lcdInitDelay
-    lda #%00010000 ; LCD nibble 0010: select 4-bit mode
-    jsr lcdInitNibble
-    rts
+    lda #%00010000      ; LCD nibble 0010: select 4-bit mode
+    jmp lcdInitNibble
 
 lcdInitNibble:
     sta PORTB
@@ -109,9 +108,9 @@ lcdInitNibble:
     rts
 
 lcdInitDelay:
-    ldy #$ff
+    ldy #$FF
 lcdInitDelayLoop:
-    ldx #$ff
+    ldx #$FF
 lcdInitDelayInnerLoop:
     dex
     bne lcdInitDelayInnerLoop
@@ -120,41 +119,41 @@ lcdInitDelayInnerLoop:
     rts
 
 toggleE:
-    ora #E            ; Set E bit to send instruction
+    ora #E              ; Set E bit to send instruction
     sta PORTB
-    eor #E            ; Clear E bit
+    eor #E              ; Clear E bit
     sta PORTB
     rts
 
 ; -------------------------------------
 ; Poll LCD busy flag instead of using
 ; a fixed delay
-; to check Busy flag need to set 
+; to check Busy flag need to set
 ; RS = 0, RW = 1
 ; -------------------------------------
 lcdWait:
     pha
-    lda #%10000111    ; LCD data is input
+    lda #%10000111      ; LCD data is input
     sta DDRB
 lcdBusy:
     lda #RW
     sta PORTB
     lda #(RW | E)
     sta PORTB
-    lda PORTB         ; Read high nibble
-    pha               ; and put on stack since it has the busy flag
+    lda PORTB           ; Read high nibble
+    pha                 ; and put on stack since it has the busy flag
     lda #RW
     sta PORTB
     lda #(RW | E)
     sta PORTB
-    lda PORTB         ; Read low nibble
-    pla               ; Get high nibble off stack
-    and #%01000000    ; Read DB7 for busy flag
+    lda PORTB           ; Read low nibble
+    pla                 ; Get high nibble off stack
+    and #%01000000      ; Read DB7 for busy flag
     bne lcdBusy
 
     lda #RW
     sta PORTB
-    lda #%11111111    ; Cfg PORTB to be output again
+    lda #%11111111      ; Cfg PORTB to be output again
     sta DDRB
     pla
     rts
@@ -162,21 +161,20 @@ lcdBusy:
 ; -------------------------------------
 ; Send an instruction to the LCD
 ; -------------------------------------
-lcdCfgCmd:          ; Send a configuration command to LCD
+lcdCfgCmd:              ; Send a configuration command to LCD
     jsr lcdWait
     pha
-    lsr               ; Shift high 4 bits to correct pins
-    and #%01111000    ; Mask off other bits
+    lsr                 ; Shift high 4 bits to correct pins
+    and #%01111000      ; Mask off other bits
     sta PORTB
     jsr toggleE
     pla
     asl
     asl
-    asl               ; Shift low 4 bits to fit in PB3-6
-    and #%01111000    ; Mask off other bits
+    asl                 ; Shift low 4 bits to fit in PB3-6
+    and #%01111000      ; Mask off other bits
     sta PORTB
-    jsr toggleE
-    rts
+    jmp toggleE
 
 ; -------------------------------------
 ; Send a character to the LCD
@@ -184,22 +182,22 @@ lcdCfgCmd:          ; Send a configuration command to LCD
 lcdWriteChar:
     jsr lcdWait
     pha
-    lsr               ; Shift 4 high bits
-    and #%01111000    ; Mask off other bits
-    ora #RS           ; Set RS bit
+    lsr                 ; Shift 4 high bits
+    and #%01111000      ; Mask off other bits
+    ora #RS             ; Set RS bit
     sta PORTB
     jsr toggleE
     pla
     asl
     asl
-    asl               ; Shift low 4 bits to fit in PB3-6
-    and #%01111000    ; Mask off other bits
+    asl                 ; Shift low 4 bits to fit in PB3-6
+    and #%01111000      ; Mask off other bits
     ora #RS
     sta PORTB
     jsr toggleE
-    
+
     ; Bookkeeping to update DDRAM and offset
-    lda lcdCursPosn ; Advance logical position (0-79), stop at the last cell
+    lda lcdCursPosn     ; Advance logical position (0-79), stop at the last cell
     inc
     cmp #80
     bcc @store
@@ -207,7 +205,7 @@ lcdWriteChar:
 @store:
     sta lcdCursPosn
     jmp lcdSyncViewport
-    
+
 
 ; -------------------------------------
 ; Cursor Directional Handlers
@@ -217,10 +215,10 @@ lcdCursU:
     cmp #$28
     bcc @done
     sec
-    sbc #$28        ; Else move cursor up by subtracting 40
+    sbc #$28            ; Else move cursor up by subtracting 40
     sta lcdCursPosn
     jsr lcdSyncViewport
-@done:   
+@done:
     rts
 
 lcdCursD:
@@ -237,32 +235,32 @@ lcdCursD:
     bcs @done
     sta lcdCursPosn
     jsr lcdSyncViewport
-@done:   
+@done:
     rts
 
 ; Move cursor left
-; If cursor is in left-most cell, 
+; If cursor is in left-most cell,
 ; check for add'l characters and shift entire display
 lcdCursL:
     lda lcdCursPosn
-    beq @done          ; We're at left-most column of top row
+    beq @done           ; We're at left-most column of top row
     dec
     sta lcdCursPosn
     jsr lcdSyncViewport
-@done:   
+@done:
     rts
 
 ; Move cursor right
-; If cursor is in right-most cell, 
+; If cursor is in right-most cell,
 ; check for add'l characters and shift entire display
 lcdCursR:
     lda lcdCursPosn
     cmp #79
-    beq @done          ; We're at right-most column of bottom row
+    beq @done           ; We're at right-most column of bottom row
     inc
     sta lcdCursPosn
     jsr lcdSyncViewport
-@done:   
+@done:
     rts
 
 
@@ -301,17 +299,17 @@ lcdSetCursor:
 ; Scroll the 16-column window until the cursor column is inside it,
 ; then put the hardware cursor on the cursor cell.
 ; -------------------------------------
-lcdSyncViewport:    
+lcdSyncViewport:
     lda lcdCursPosn
-    cmp #$28                
-    bcc @col_ok    
-    sbc #$28                ; If >= 40, subtract 40
+    cmp #$28
+    bcc @col_ok
+    sbc #$28            ; If >= 40, subtract 40
 @col_ok:
     sta lcdTemp
 @left:                  ; Cursor left of window?
     lda lcdTemp
     cmp lcdOffset
-    bcs @right    ; col >= offset
+    bcs @right          ; col >= offset
     dec lcdOffset
     lda #LCD_SHIFTR     ; window moves left over data
     jsr lcdCfgCmd

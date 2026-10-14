@@ -26,24 +26,25 @@
     .i8
     .smart
     .include "thru_defs.inc"
-PS2KB_IMPL = 1              ; this file defines the routines ps2KB.inc would import
+; this file defines the routines ps2KB.inc would import
+PS2KB_IMPL = 1
     .include "ps2KB.inc"
     .export kbInit, kbIRQ, kbGetKey, kbWaitKey
     .exportzp kbFlags
 
 ; Variables: the linker assigns the addresses (see ZEROPAGE and BSS in rom.cfg)
     .segment "ZEROPAGE" : zeropage
-kbWptr:     .res 1          ; ring buffer write index (only the IRQ handler writes it)
-kbRptr:     .res 1          ; ring buffer read index  (only kbGetKey writes it)
-kbFlags:    .res 1          ; modifier / decoder state, see the KB_* bits
-kbTemp:     .res 1          ; scratch for bitReversal
+kbWptr:     .res 1      ; ring buffer write index (only IRQ handler writes it)
+kbRptr:     .res 1      ; ring buffer read index  (only kbGetKey writes it)
+kbFlags:    .res 1      ; modifier / decoder state, see the KB_* bits
+kbTemp:     .res 1      ; scratch for bitReversal
 
     .segment "BSS"
-kbBuffer:   .res 256        ; raw scan codes. A full 256 entries, so the 8-bit
-                            ; indexes wrap by themselves
+kbBuffer:   .res 256    ; raw scan codes. A full 256 entries, so the 8-bit
+                        ; indexes wrap by themselves
 ; --- bits in kbFlags (KB_SHIFT and KB_CTRL are public, in ps2KB.inc) ---
-KB_RELEASE  = %00000001     ; next code is a key release
-KB_EXTENDED = %00010000     ; next code is an extended (E0) key
+KB_RELEASE  = %00000001 ; next code is a key release
+KB_EXTENDED = %00010000 ; next code is an extended (E0) key
 
 ; --- PS/2 set 2 scan codes (private to this file) ---
 REL_CODE    = $F0       ; prefix: next code is a key release
@@ -67,14 +68,14 @@ kbInit:
     stz kbFlags
     stz kbWptr
     stz kbRptr
-    stz DDRA                ; port A is all input
+    stz DDRA            ; port A is all input
     lda PCR
-    ora #%00000001          ; CA1 interrupts on the positive edge
+    ora #%00000001      ; CA1 interrupts on the positive edge
     sta PCR
     lda #%01111111
-    sta IFR                 ; discard any CA1 event from before now
+    sta IFR             ; discard any CA1 event from before now
     lda #%10000010
-    sta IER                 ; enable the CA1 interrupt (other sources untouched)
+    sta IER             ; enable the CA1 interrupt (other sources untouched)
     rts
 
 ; -------------------------------------
@@ -84,7 +85,7 @@ kbInit:
 kbIRQ:
     pha
     phx
-    lda PORTA               ; read key code (reading PORTA also clears the interrupt)
+    lda PORTA           ; read key code (reading PORTA also clears interrupt)
     jsr bitReversal
     ldx kbWptr
     sta kbBuffer,x
@@ -93,7 +94,7 @@ kbIRQ:
     pla
     rti
 
-bitReversal:                ; A = bit-reversed A. Clobbers X.
+bitReversal:            ; A = bit-reversed A. Clobbers X.
     sta kbTemp
     lda #$00
     ldx #$08
@@ -112,7 +113,7 @@ bitReversal:                ; A = bit-reversed A. Clobbers X.
 kbGetKey:
     lda kbRptr
     cmp kbWptr
-    beq @none               ; buffer empty
+    beq @none           ; buffer empty
 
     ldx kbRptr
     lda kbBuffer,x
@@ -122,7 +123,7 @@ kbGetKey:
     beq @prefix_release
     cmp #EXTEND_CODE
     beq @prefix_extend
-    tax                     ; X = scan code from here on
+    tax                 ; X = scan code from here on
 
     lda kbFlags
     and #KB_RELEASE
@@ -166,13 +167,13 @@ kbGetKey:
 
 @prefix_release:
     lda kbFlags
-    ora #KB_RELEASE         ; the next code is a release
+    ora #KB_RELEASE     ; the next code is a release
     sta kbFlags
     bra @next
 
 @prefix_extend:
     lda kbFlags
-    ora #KB_EXTENDED        ; the next code is an extended key
+    ora #KB_EXTENDED    ; the next code is an extended key
     sta kbFlags
     bra @next
 
@@ -191,10 +192,10 @@ kbGetKey:
 
 @extended:
     lda kbFlags
-    and #<~KB_EXTENDED      ; the prefix has done its job
+    and #<~KB_EXTENDED  ; the prefix has done its job
     sta kbFlags
     cpx #SC_CTRL
-    beq @ctrl_down          ; right ctrl
+    beq @ctrl_down      ; right ctrl
     lda #KEY_UP
     cpx #SC_UP
     beq @got_key
@@ -254,9 +255,9 @@ keymap:
     .byte "?cxde43?? vftr5?" ; 20-2F
     .byte "?nbhgy6???mju78?" ; 30-3F
     .byte "?,kio09??./l;p-?" ; 40-4F
-    .byte "??'?[=????",$0a,"]?\??" ; 50-5F
+    .byte "??'?[=????",$0A,"]?\??" ; 50-5F
     .byte "?????????1?47???" ; 60-6F
-    .byte "0.2568",$1b,"??+3-*9??" ; 70-7F
+    .byte "0.2568",$1B,"??+3-*9??" ; 70-7F
     .byte "????????????????" ; 80-8F
     .byte "????????????????" ; 90-9F
     .byte "????????????????" ; A0-AF
@@ -271,9 +272,9 @@ keymap_shifted:
     .byte "?CXDE#$?? VFTR%?" ; 20-2F
     .byte "?NBHGY^???MJU&*?" ; 30-3F
     .byte "?<KIO)(??>?L:P_?" ; 40-4F
-    .byte "??",$22,"?{+????",$0a,"}?|??" ; 50-5F
+    .byte "??",$22,"?{+????",$0A,"}?|??" ; 50-5F
     .byte "?????????1?47???" ; 60-6F
-    .byte "0.2568",$1b,"??+3-*9??" ; 70-7F
+    .byte "0.2568",$1B,"??+3-*9??" ; 70-7F
     .byte "????????????????" ; 80-8F
     .byte "????????????????" ; 90-9F
     .byte "????????????????" ; A0-AF
